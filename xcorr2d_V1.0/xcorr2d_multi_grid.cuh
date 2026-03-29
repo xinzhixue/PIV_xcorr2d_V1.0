@@ -1,0 +1,208 @@
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+#include <cufft.h>
+#include <cuda_runtime.h>
+#include <iostream>
+#include <afx.h>
+#include <iomanip>
+#include <fstream>
+
+using namespace std;
+
+class xcorr2d_multi
+{
+public:
+	dim3 griddim;
+	dim3 blockdim;
+	int Nx;
+	int Ny;
+	int ws_x1;
+	int ws_y1;
+	int spacingx1;
+	int spacingy1;
+	int Npass1;
+	int ws_x2;
+	int ws_y2;
+	int spacingx2;
+	int spacingy2;
+	int Npass2;
+	int Nsec1_cc;
+	int Nsec2_cc;
+	int wx1_median;
+	int wy1_median;
+	int wx1_smooth;
+	int wy1_smooth;
+	int wx2_median;
+	int wy2_median;
+	int wx2_smooth;
+	int wy2_smooth;
+	int Npeak_save;
+	float dispx_lim1;
+	float dispx_lim2;
+	float dispy_lim1;
+	float dispy_lim2;
+public:
+	int border_x_p1;
+	int border_y_p1;
+	int border_x_p2;
+	int border_y_p2;
+	int Nt;
+	int Nt1_median;
+	int Nt1_smooth;
+	int Nt2_median;
+	int Nt2_smooth;
+	int hfws_x1;
+	int hfws_y1;
+	int hfws_x2;
+	int hfws_y2;
+	int Nt_ws1;
+	int Nt_ws2;
+	int Npeak1;
+	int Npeak2;
+	int Nx1_vec;
+	int Ny1_vec;
+	int Nt1_vec;
+	int Nx2_vec;
+	int Ny2_vec;
+	int Nt2_vec;
+	int Neach1;
+	int Nlast1;
+	int Neach2;
+	int Nlast2;
+	int Nx1_left;
+	int Nx1_right;
+	int Ny1_left;
+	int Ny1_right;
+	int Nx2_left;
+	int Ny2_left;
+	int Nx2_right;
+	int Ny2_right;
+	int Nx1_aug;
+	int Ny1_aug;
+	int Nt1_aug;
+	int Nx2_aug;
+	int Ny2_aug;
+	int Nt2_aug;
+	int Nx1_aug_ex;
+	int Ny1_aug_ex;
+	int Nt1_aug_ex;
+	int Nx2_aug_ex;
+	int Ny2_aug_ex;
+	int Nt2_aug_ex;
+	cufftHandle fftplan1;
+	cufftHandle fftplan2;
+	int gridN1_peak_p1;
+	int gridN2_peak_p1;
+	int blockN1_peak_p1;
+	int blockN2_peak_p1;
+	int gridN1_peak_p2;
+	int gridN2_peak_p2;
+	int blockN1_peak_p2;
+	int blockN2_peak_p2;
+	ofstream outputfile;
+public:
+	unsigned char* h_img1_org;
+	unsigned char* h_img2_org;
+	unsigned char* d_img1_p1_aug_ex;
+	unsigned char* d_img2_p1_aug_ex;
+	unsigned char* d_img1_p2_aug_ex;
+	unsigned char* d_img2_p2_aug_ex;
+	cufftComplex* d_xcorr1;
+	cufftComplex* d_xcorr2;
+	float* d_cc;
+	float* d_img_deform_p1;
+	float* d_img_deform_p2;
+	int* d_posi_count_p1;
+	int* d_posi_count_p2;
+	int* d_index_local_tot1;
+	int* d_index_local_tot2;
+	float* d_max_local_tot1;
+	float* d_max_local_tot2;
+	int* d_index_inter_p1;
+	int* d_index_inter_p2;
+	float* d_max_inter1_p1;
+	float* d_max_inter1_p2;
+	int* d_index_inter1_p1;
+	int* d_index_inter1_p2;
+	int* d_index_four_peaks_p1;
+	int* d_index_four_peaks_p2;
+	float* d_max_four_peaks_p1;
+	float* d_max_four_peaks_p2;
+	bool* d_valid_p1;
+	bool* d_valid_p2;
+	float* d_disp_x_p1;
+	float* d_disp_y_p1;
+	float* d_disp_x_p2;
+	float* d_disp_y_p2;
+	float* d_disp_x_filter_p1;
+	float* d_disp_y_filter_p1;
+	float* d_disp_x_filter_p2;
+	float* d_disp_y_filter_p2;
+	bool* d_valid_filter_p1;
+	bool* d_valid_filter_p2;
+	int* d_neighbor_cnt_p1;
+	int* d_neighbor_cnt_p2;
+	float* d_disp_x_neigh_p1;
+	float* d_disp_y_neigh_p1;
+	float* d_disp_x_neigh_p2;
+	float* d_disp_y_neigh_p2;
+	bool* d_valid_median_p1;
+	bool* d_valid_median_p2;
+	float* d_median_x_p1;
+	float* d_median_y_p1;
+	float* d_median_x_p2;
+	float* d_median_y_p2;
+	float* d_devi_x_neigh_p1;
+	float* d_devi_y_neigh_p1;
+	float* d_devi_x_neigh_p2;
+	float* d_devi_y_neigh_p2;
+	float* d_devimedian_x_p1;
+	float* d_devimedian_y_p1;
+	float* d_devimedian_x_p2;
+	float* d_devimedian_y_p2;
+	bool* d_fill_index_p1;
+	bool* d_fill_index_p2;
+	int* d_fill_cnt;
+	int* h_fill_cnt;
+	float* d_disp_x_neigh_smooth_p1;
+	float* d_disp_y_neigh_smooth_p1;
+	float* d_disp_x_neigh_smooth_p2;
+	float* d_disp_y_neigh_smooth_p2;
+	float* d_disp_x_filter_p1_ex;
+	float* d_disp_y_filter_p1_ex;
+	float* d_disp_x_filter_p2_ex;
+	float* d_disp_y_filter_p2_ex;
+	float* h_disp_x_p1;
+	float* h_disp_y_p1;
+	bool* h_valid_p1;
+	float* h_disp_x_p2;
+	float* h_disp_y_p2;
+	bool* h_valid_p2;
+	float* h_disp_x_filter_p1;
+	float* h_disp_y_filter_p1;
+	float* h_disp_x_filter_p2;
+	float* h_disp_y_filter_p2;
+	float* h_gridx1;
+	float* h_gridy1;
+	float* h_gridx2;
+	float* h_gridy2;
+public:
+	int vec_ex_border_p1 = 3;
+	int vec_ex_border_p2 = 3;
+	float epsilon = 0.1;
+public:
+	bool xcorr2d_multi::init(int m_Nx, int m_Ny, int m_Nsec_cc, int m_ws_x1, int m_ws_y1, int m_spacing_x1, int m_spacing_y1, int m_Npass1, int m_ws_x2, int m_ws_y2, int m_spacing_x2, int m_spacing_y2,
+		int m_Npass2, int m_wx1_median, int m_wy1_median, int m_wx2_median, int m_wy2_median, int m_wx1_smooth, int m_wy1_smooth, int m_wx2_smooth, int m_wy2_smooth, int m_Npeak_save,
+		float max_dispx_percent1, float max_dispy_percent1, float max_dispx_percent2, float max_dispy_percent2, float m_dispx_lim1, float m_dispx_lim2, float m_dispy_lim1, float m_dispy_lim2);
+	void xcorr2d_multi::freemem();
+	void xcorr2d_multi::setupgridblockdim(int dim1_grid, int dim2_grid, int dim3_grid, int dim1_block, int dim2_block, int dim3_block);
+	bool xcorr2d_multi::Calc_cc_map_p1(int idx_pass);
+	bool xcorr2d_multi::Calc_cc_map_p2();
+	bool xcorr2d_multi::MedianFilter_Smoothing_p1(int Npass1_median, int minNneigh_p1, float residual_threshold_p1, float insert_threshold_p1, int Npass1_smooth);
+	bool xcorr2d_multi::MedianFilter_Smoothing_p2(int Npass2_median, int minNneigh_p2, float residual_threshold_p2, float insert_threshold_p2, int Npass2_smooth, int iffill_p2);
+	void xcorr2d_multi::extend_filtered_vecfield_p1();
+	void xcorr2d_multi::extend_filtered_vecfield_p2();
+	bool xcorr2d_multi::Upsampling_vector_field();
+	bool xcorr2d_multi::write_vec_data_general(CString dir_vec, int selection);
+	void xcorr2d_multi::prep_img_data();
+};

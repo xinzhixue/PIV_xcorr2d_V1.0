@@ -1,0 +1,138 @@
+The code is developed to perform batch-processing of PIV images pair using GPUs.
+
+The image pairs should be stored separately as two individual 8-bit tif grayscale images.
+
+The first-frame images should be kept in one folder. The second-frame images should be kept one folder. Or the first-frame and second-frame images can be kept in one folder.
+
+The images have the following name format: file directory prefix + index (0000 to 9999 available) + file directory suffix
+
+The indices of the image pairs should be kept in a text file as a column of numbers. When the code runs, it will read the indices of the image pairs. Then it will construct the full image file directory and 
+further reads the images. 
+
+For example:
+
+file directory prefix of the first frame: E:\JHUME\c_coding\xcorr2d_V1.0\data\1_
+file directory suffix of the first frame: _example.tif
+file directory prefix of the second frame: E:\JHUME\c_coding\xcorr2d_V1.0\data\2_
+file directory suffix of the second frame: _example.tif
+
+If the read file index is 100. Then the constructed file directories are:
+
+E:\JHUME\c_coding\xcorr2d_V1.0\data\1_0100_example.tif (for the first-frame)
+E:\JHUME\c_coding\xcorr2d_V1.0\data\2_0100_example.tif (for the second-frame)
+
+This code is also able to perform MHE enhancement using the GPU. One can specify whether to perform the MHE enhancement. 
+
+The code performs 2-grid PIV cross-correlation. The first grid is relatively coarse with bigger correlation/interrogation windows, and the second grid is relatively finer with smaller correlation/interrogation windows. For each grid, multi-pass can be performed. During multi-pass operations, the second-frame image is dewarped according to the previously determined vector field. This is the so-called window deformation. The linear interpolation is used in the window deformation.
+
+The median filtering follows the one in DaVis called "Universal outlier detection/removal/insert". For each interrogation window, more than one cross-correlation peaks will be detected and kept in memory in a cross-correlation-value-decreasing order, i.e., the first peak has the highest cross-correlation value. These peaks will be used as peak candidates when performing the median filtering. If a peak does not satisfy the requirement specified by the "Remove threshold" and "Insert threshold", the following peak candidate will be checked, and if it meets the requirement, it will be inserted to replace the original vector.
+
+This version of the code does not have the window weighting feature, but it will include that in the future version.
+
+The smoothing uses the tophap filter.
+
+
+The following illustrate the meaning of each row in the parameter file.
+
+
+1. The file directory prefix of the first frame
+
+2. The file directory suffix of the first frame
+
+3. The file directory prefix of the second frame
+
+4. The file directory suffix of the second frame
+
+5. The file directory of the text file that contains the image pair indices
+
+6. The directory of a folder to which the results will be saved (if this folder doesn't exist, the code will create the folder automatically)
+
+7. The index of GPU to be used for processing (If there is only one GPU installed, it should be 0. If more than one GPUs are installed on the machine, this number can be set other than 0)
+
+8. Whether or not to perform MHE enhancement (1 yes, 0 no)
+
+9. MHE enhancement window size, e.g., 64
+
+10. MHE enhancement percentage, e.g., 0.91 (corresponding to 91%)
+
+11. particle image size in the horizontal (x) direction, column number, e.g., 6600
+
+12. particle image size in the vertical (y) direction, row number, e.g., 4400
+
+13. The interrogation window size in the x direction in the first grid, e.g., 64 (The window doesn't have to be square.)
+
+14. The interrogation window size in the y direction in the first grid, e.g., 64
+
+15. The vector spacing in the x direction in the first grid, e.g., 32 (corresponding to 50% overlapping) (The vector spacings in the x and y directions do not have to equal.)
+
+16. The vector spacing in the y direction in the first grid, e.g., 32 
+
+17. Number of passes for cross-correlation in the first grid
+
+18. The interrogation window size in the x direction in the second grid, e.g., 32 (The window doesn't have to be square)
+
+19. The interrogation window size in the y direction in the second grid, e.g., 32
+
+20. The vector spacing in the x direction in the second grid, e.g., 8 (corresponding to 75% overlapping)
+
+21. The vector spacing in the y direction in the second grid, e.g., 8 
+
+22. Number of passes for cross-correlation in the second grid
+
+23. Number of sections for storing the cross-correlation windows (This parameter depends on the GPU on-board memory. If the memory is sufficient, it should be set to 1. Otherwise, try higher numbers)
+
+24. The median filtering window size in the x direction in the first grid, e.g., 5 (the window does not have to be square).
+
+25. The median filtering window size in the y direction in the first grid, e.g., 5 
+
+26. Number of passes for median filtering in the first grid, e.g., 2
+
+27. Minimum number of neighboring vectors for performing the median filtering in the first grid, e.g., 5
+
+28. The Remove thershold for median filtering in the first grid, e.g., 2
+
+29. The Insert threshold for median filtering in the first grid, e.g., 3
+
+30. The smoothing window size in the x direction in the first grid, e.g., 3
+
+31. The smoothing window size in the y direction in the first grid, e.g., 3
+
+32. Number of passes for the smoothing in the first grid, e.g., 1
+
+33. The median filtering window size in the x direction in the second grid, e.g., 5 (the window does not have to be square).
+
+34. The median filtering window size in the y direction in the second grid, e.g., 5 
+
+35. Number of passes for median filtering in the second grid, e.g., 2
+
+36. Minimum number of neighboring vectors for performing the median filtering in the second grid, e.g., 5
+
+37. The Remove thershold for median filtering in the second grid, e.g., 2
+
+38. The Insert threshold for median filtering in the second grid, e.g., 3
+
+39. The smoothing window size in the x direction in the second grid, e.g., 3
+
+40. The smoothing window size in the y direction in the second grid, e.g., 3
+
+41. Number of passes for the smoothing in the second grid, e.g., 1
+
+42. The percentage of interrogation window size that is allowed for detecting the peaks in the x direction in the first grid, e.g., 0.4 for window size 64 means the detected displacement will NOT exceed 25.
+
+43. The percentage of interrogation window size that is allowed for detecting the peaks in the y direction in the first grid
+
+44. The percentage of interrogation window size that is allowed for detecting the peaks in the x direction in the second grid, e.g., 0.25 for window size 32 means the detected displacement will NOT be greater than (8 plus the value detected in the previous pass).
+
+45. The percentage of interrogation window size that is allowed for detecting the peaks in the y direction in the second grid
+
+46. The number of candidate peaks to be detected for median filtering, e.g., 4 (This is the number used in DaVis)
+
+47. The lower limit of the allowed vector in the x direction, e.g., 0 if the flow is dominantly in the positive-x direction
+
+48. The upper limit of the allowed vector in the x direction, e.g., 50 if it is known that value greater than 50 is physically impossible
+
+49. The lower limit of the allowed vector in the y direction
+ 
+50. The upper limit of the allowed vector in the y direction
+
+
